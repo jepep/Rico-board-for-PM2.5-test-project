@@ -1,0 +1,34 @@
+static int __init oeld_init(void)0 M' i6 h7 z+ v& s7 u7 I' G5 t9 m0 G
+{3 c* b# g& f+ Q1 q
+        int status;/ g$ |6 F5 x( h( p7 m& s
+
+        /* Claim our 256 reserved device numbers.  Then register a class
+         * that will key udev/mdev to add/remove /dev nodes.  Last, register* ]5 ^5 O8 W1 M, @
+         * the driver which manages those device numbers.# C" x. @: R2 u% \
+         */
+        printk("=1=oeld_init\n");
+        BUILD_BUG_ON(N_SPI_MINORS > 256);
+        printk("=2=oeld_init\n");5 c- X$ J( |4 j5 r
+        status = register_chrdev(oeld_MAJOR, "spi", &oeld_fops);3 c4 T$ M2 J6 F$ g4 X( J
+        if (status < 0)' h, e  X5 S& S9 ^6 U. k6 G4 ]
+                return status;
+        printk("=3=oeld_init\n");/ J; H0 _4 l$ ]) V
+#ifdef CONFIG_COMPAT# X4 Q, O5 t9 B9 X9 N; u
+        printk("=3=oeld_init CONFIG_COMPAT define\n");
+#endif
+        oeld_class = class_create(THIS_MODULE, "oeld");$ R. F3 ]8 ^$ _  A9 H
+        if (IS_ERR(oeld_class)) {
+                unregister_chrdev(oeld_MAJOR, oeld_spi_driver.driver.name);* k# |9 A3 C- j+ [
+                return PTR_ERR(oeld_class);
+        }
+        printk("=4=oeld_init\n");/ N0 k3 W+ y) q4 C; g" [: T  f
+
+        status = spi_register_driver(&oeld_spi_driver);2 g  m4 D) S" O: O& s! V
+        if (status < 0) {0 B* y% H- E! |# C% H8 [' f# b
+                class_destroy(oeld_class);
+                unregister_chrdev(oeld_MAJOR, oeld_spi_driver.driver.name);# K( ]+ j( I% I6 l- _" B& D; B6 D' E' C
+        }9 q) {5 M% a, p# w# O; }
+        printk("=5=oeld_init\n");7 ^# N: z1 @: \4 f8 U
+        return status;" o5 u* a% {% z5 q0 s+ E
+}
+module_init(oeld_init);
