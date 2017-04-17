@@ -1,0 +1,38 @@
+static ssize_t
+oeld_write(struct file *filp, const char __user *buf,+ X+ h% G: ]& y1 \: k2 Z
+                size_t count, loff_t *f_pos)7 k1 B1 x. f9 V" z4 x; L' E4 _
+{$ r, y+ P5 K  O2 f
+        struct oeld_data        *oeld;
+        ssize_t                        status = 0;
+        unsigned long                missing;0 P5 G( w% C$ l0 Y& l* V( H
+        struct ss1306_data *pss1306_data;
+
+//        printk("=1=oeld_write count=%d, bufsiz=%d\n", count, bufsiz);
+
+        /* chipselect only toggles at start or end of operation */8 J8 B0 p; F$ y% W& ~' D
+        if (count > bufsiz)% c1 t0 [  q, d/ B; R# A
+                return -EMSGSIZE;
+//        printk("=2=oeld_write count=%d, bufsiz=%d\n", count, bufsiz);
+
+        oeld = filp->private_data;) ]2 }# V3 W+ o
+# e6 M8 j9 v# E9 e2 i* b3 q( _! w6 n) f
+        mutex_lock(&oeld->buf_lock);# Z3 c* w' d1 G$ W
+        missing = copy_from_user(oeld->buffer, buf, count);2 q( [+ P6 K  _4 Q! h9 x
+        if (missing == 0) {: z0 |1 X8 C& N3 C0 n* ]
+        #if 0
+                status = oeld_sync_write(oeld, count);. ^  F9 Y1 d! M0 q$ d" J
+        #else3 b# g+ F) C% K7 n6 V& ]- W4 q
+        //        printk("=211=oeld_write count=%d, bufsiz=%d\n", count, bufsiz);
+                pss1306_data = (struct ss1306_data *)oeld->buffer;# ~& b8 z$ S# M/ y' |
+                status = ssd1306_showString(oeld->spi, pss1306_data);! t$ P; z) f* l' @$ }
+        //        printk("=212=oeld_write count=%d, status=%d\n", count, status);
+        #endif
+        } else8 ?) P3 F3 J$ M" }3 U) Z
+        {
+                        printk("=22=oeld_write count=%d, bufsiz=%d\n", count, bufsiz);
+                status = -EFAULT;
+        }. N& @5 x# Z' \
+        mutex_unlock(&oeld->buf_lock);; z: w7 ?4 ?" _, B2 B
+
+        return status;3 ]- C: g' T2 E' @( _; q5 o
+}
