@@ -1,0 +1,657 @@
+/*
+* SPI testing utility (using spidev driver)) U( Y$ G, V% w' |4 F6 L* k2 d& Q+ k
+*' z# [) M/ s$ Z. H8 n
+* Copyright (c) 2007  MontaVista Software, Inc.
+* Copyright (c) 2007  Anton Vorontsov <avorontsov@ru.mvista.com>
+*
+* This program is free software; you can redistribute it and/or modify$ E0 G; E3 m6 F4 I
+* it under the terms of the GNU General Public License as published by) B0 T0 A4 |. o% {+ G/ I- u
+* the Free Software Foundation; either version 2 of the License.. |2 Z0 T! q9 u% H  O" E& l
+*" X( n, B- W  M$ f7 \4 b
+* Cross-compile with cross-gcc -I/path/to/cross-kernel/include
+*/
+* P6 H1 ~0 Z  A" ~, A" o: k9 w/ i: d
+#include <stdint.h>* C) K$ o- Q! _2 o& R. z
+#include <unistd.h>% T- d4 {; `7 ]
+#include <stdio.h>, A1 j; ?: {# k
+#include <stdlib.h>
+#include <getopt.h>
+#include <fcntl.h>; n/ K9 L0 [: [* m
+#include <sys/ioctl.h>
+#include <linux/types.h>
+#include <linux/spi/spidev.h>
+#include<fcntl.h>      /*File control definition */7 Z, B! H2 G1 m  W$ z
+#include<termios.h>    /*PPSIX Terminal control definition*/- I0 Q; P' v+ ?: ^
+  [3 ?6 n* W9 g: U1 x
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))! \* S1 z' C* M
+
+static void pabort(const char *s), ?9 G% h, _7 w7 I" Q. ^* U. ?
+{
+        perror(s);
+        abort();
+}9 Y# P& U0 |, m8 `
+#define UART_BAND_RATE 115200
+2 y) m: R* ]9 d. Q
+static const char *device = "/dev/oeld32766.0";
+static uint8_t mode;
+static uint8_t bits = 8;
+static uint32_t speed = 500000;  a) R9 N9 M7 N1 L$ q
+static uint16_t delay;
+struct ss1306_data {
+        int x1;
+        int y1;
+        int str1_len;
+        char str1[20];
+        int x2;4 J9 V* V9 [" ]
+        int y2;
+        char str2[20];
+        int str2_len;
+        int x3;9 x7 v7 \# s- ?3 x
+        int y3;5 I: ?! H1 [+ H% x0 k/ Q& N
+        char str3[20];6 t! v+ |+ u4 H0 i6 B
+        int str3_len;) L- C' Y3 ~( [1 S. R. }
+};8 u( S) U6 x7 ?
+#if 1
+static void transfer1(int fd, int x1, int y1, char *str1, int str1_len, ) r  Z) @* Y4 {# q& a
+                                                                                                                        int x2, int y2, char *str2, int str2_len,
+                                                                                                                        int x3, int y3, char *str3, int str3_len)
+{8 K1 z. ^# x9 T6 b; r: `1 |8 y0 |
+        int ret;
+        //char str1[] = "1234567890abcdefg";
+        //char str2[] = "asdcfgtrerrefd";1 P4 A3 w3 a6 K) ^; R4 Y2 g! N4 V
+        struct ss1306_data tx;
+        struct ss1306_data *ptx;
+        ptx = &tx;
+        tx.x1 = 0;
+        tx.y1 = 0;5 E0 u/ r: l* R1 [. O
+        memcpy(tx.str1, str1, str1_len);1 y" P9 r+ N  G( z! }9 h8 z
+        tx.x2 = 0;4 ^  p) h& Y! P$ [( L
+        tx.y2 = 16;
+        memcpy(tx.str2, str2, str2_len);
+        tx.x3 = 0;( i/ T- I% ]- k( D4 ^; ?& y
+        tx.y3 = 32;
+        memcpy(tx.str3, str3, str3_len);: l* S% W* k4 a( K$ b
+//        printf("==str1=%s, str2=%s str3=%s\n", str1, str2, str3);
+        ret = write(fd, &tx, sizeof(struct ss1306_data));
+        if(ret > 0)0 Z5 X8 Y+ b' ?5 E% F: G( v. v
+        {* Y, r) H( O# X. A3 [: K3 g
+        printf("=2=strlen(str1)=%d, sizeof(struct ss1306_data)=%d \n", str1_len, sizeof(struct ss1306_data));
+        }. g9 y' \: G- G) r" Y
+        else8 `9 s4 A9 f9 @5 h
+                {3 P7 K  R6 q$ T5 B9 y
+                        printf("show sucess!\n");
+                        //        printf("=3=strlen(str1)=%d, sizeof(struct ss1306_data)=%d \n", str1_len, sizeof(struct ss1306_data));
+& t2 [+ k( N' S! m* [) K: c
+                }
+}
+#else
+static void transfer(int fd)
+{
+        int ret;" W$ j7 V9 O2 L! s
+        uint8_t tx[] = {
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                0x40, 0x00, 0x00, 0x00, 0x00, 0x95,8 k; A$ G- w7 p8 X& z) M  D
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,, e/ _1 G# U# t* ]/ s) L
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,2 j+ q7 F1 F) ]/ V5 _8 E: Z* X
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,% ^: a* D' C* B' j! W0 C! C
+                0xDE, 0xAD, 0xBE, 0xEF, 0xBA, 0xAD,
+                0xF0, 0x0D,
+        };
+        uint8_t rx[ARRAY_SIZE(tx)] = {0, };; f0 c# T4 k5 I2 }
+        struct spi_ioc_transfer tr = {) }) Z/ f1 t7 I3 ~1 f
+                .tx_buf = (unsigned long)tx,2 k8 F6 |! I7 M9 g  J4 X  ~
+                .rx_buf = (unsigned long)rx,& K2 _/ X' t: K7 z
+                .len = ARRAY_SIZE(tx),
+                .delay_usecs = delay,
+                .speed_hz = speed," X( o$ U' |3 o$ s! N
+                .bits_per_word = bits,
+        };
+
+        ret = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);. V( q% A2 c5 R4 t6 H% S  z
+        if (ret < 1)
+                pabort("can't send spi message");
++ x7 f1 S7 ?6 ^8 B* Y2 x1 Z" [
+        for (ret = 0; ret < ARRAY_SIZE(tx); ret++) {! ^' b' S- [* e! Q* v6 H
+                if (!(ret % 6))( l2 T# _% F- e& Z
+                        puts("");- T. {! V) ^/ m2 l; L) p& b9 v
+                printf("%.2X ", rx[ret]);
+        }- j7 q% M) b+ {- l
+        puts("");
+}5 ?7 [8 y1 q0 |* h/ r) d9 v
+#endif  X! a( x: Y0 @
+#define FALSE  -1
+#define TRUE   0
+# `# H* ^3 v$ y$ D' j  G
+/*******************************************************************/ k) T* A0 r% h4 [+ J
+* Name：                  UART0_Open
+* Function：                Open the serial port and return the serial device file description
+* inlet parameter：        fd    :file descriptor     port :serial port number(ttyS0,ttyS1,ttyS2)
+* outlet parameters：        If true retrun 1，If false return 0
+*******************************************************************/
+int UART0_Open(int fd,char* port)
+{8 I1 ?5 k" T1 s! R" i
+   8 k# [" c" F" |% U1 l- ^# V, \
+         fd = open( port, O_RDWR|O_NOCTTY|O_NDELAY);
+         if (FALSE == fd)7 C; d9 J8 ?; {' R, G
+                {
+                       perror("Can't Open Serial Port");
+                       return(FALSE);
+                }) y( Y$ r1 f( |% F# g# h
+     //Restore serial port for blocking state                               
+     if(fcntl(fd, F_SETFL, 0) < 0)) K/ W, Q. Z/ g2 [( J% g
+                {
+                       printf("fcntl failed!\n");, T! k2 R( C9 g$ s" M& X
+                     return(FALSE);  L: ?4 J0 f9 u& R7 H$ U
+                }     
+         else
+                {
+                  printf("fcntl=%d\n",fcntl(fd, F_SETFL,0));7 h4 x: x$ ~% P; z: f/ F+ P
+                }6 @, Y4 i7 O2 o$ A" c
+      //Testing to confirm whether it is terminal equipment    
+      if(0 == isatty(STDIN_FILENO))# `9 P0 ]/ m  e- d6 `1 k4 A
+                {6 r4 }+ L$ `* x$ y5 W) X0 ^
+                       printf("standard input is not a terminal device\n");
+                  return(FALSE);& f/ N: J/ j2 ]8 V6 J/ d
+                }
+  else+ t$ ]2 K8 y: g# [5 p/ z- n0 D
+                {
+                     printf("isatty success!\n");
+                }              9 M9 N  R/ j$ Z( X' H
+  printf("fd->open=%d\n",fd);% l8 }! n+ B5 _4 }- Z
+  return fd;
+}
+/*******************************************************************
+* Name：                UART0_Close, p: m8 _) @, }% }
+* Function：                Close the serial port and return the serial device file description/ L& {. W+ X- t& m5 S
+* inlet parameter：        fd    :file descriptor    port :serial port numbers(ttyS0,ttyS1,ttyS2)
+* outlet parameter：        void! q" l" a& z; R! e
+*******************************************************************/$ h7 a6 [3 ~' I3 o7 C9 }
+
+void UART0_Close(int fd), R% v1 P) e+ n+ K+ F) l7 ~/ `
+{
+    close(fd);6 @7 N& u- ~& c/ s( _
+}
+1 b3 k& L' l( p0 i! ~( ?; o
+/*******************************************************************0 K6 B3 B6 S9 u, {4 F! j+ k) f
+* Name：                UART0_Set
+* Function：                Set serial data bits，Stop and check bit 3 U9 `( N; B4 k4 C$ ~
+* ：        fd        Serial file descriptor+ g  r5 x; A0 G  S! n
+*                              speed     Serial speed
+*                              flow_ctrl  Data flow control
+*                           databits   Data bit  7 or8
+*                           stopbits   Stop bit    1 or 2* w  f3 n7 t6 [
+*                           parity     Validation type N,E,O,,S
+*inlet parameter：           If true retrun 1，If false return 0
+*******************************************************************// n6 O: d9 R/ [  u5 _; k$ [
+int UART0_Set(int fd,int speed,int flow_ctrl,int databits,int stopbits,int parity)1 V% t; U# _* C9 w- D7 }( J
+{
+   # p3 d& R% k. k" y1 U( b
+     int   i;) h# q3 ?5 e) f# [& E
+     int   status;" H0 \- X5 `! ^0 }1 g6 C
+     int   speed_arr[] = { B115200, B57600, B38400, B19200, B9600, B4800, B2400, B1200, B300};$ I$ u1 g" L3 u" s' |! c* m
+     int   name_arr[] = {115200, 57600, 38400, 19200,  9600,  4800,  2400,  1200,  300};: f, a2 z7 M* i$ \: ^
+         # i3 H' Q' c( z; Q' D, l7 x7 H
+    struct termios options;! N- ^% ?4 j7 M
+   0 \' [2 c1 {4 I' S! _7 S, C
+    /*tcgetattr(fd,&options)得到与fd指向对象的相关参数，并将它们保存于options,该函数还可以测试配置是否正确，该串口是否可用等。若调用成功，函数返回值为0，若调用失败，函数返回值为1.3 b1 g, `* W; t  L- h
+    */
+    if  ( tcgetattr( fd,&options)  !=  0)2 [2 K8 b; K! E# `$ d( y9 {
+       {  q' x! a7 Z+ ?
+          perror("SetupSerial 1");    " t+ O, i; @; r% e
+          return(FALSE); 4 I+ A' n5 k+ s4 B6 R4 B4 j
+       }
+  
+    //Set the serial input baud rate and output baud rate
+    for ( i= 0;  i < sizeof(speed_arr) / sizeof(int);  i++)
+                {
+                     if  (speed == name_arr[i])
+                            {             
+                                 cfsetispeed(&options, speed_arr[i]); # d+ m2 V; p' b* k* w
+                                 cfsetospeed(&options, speed_arr[i]);  % _( k2 x0 d6 I2 }6 ^2 @/ {1 c
+                            }; v% x+ Y4 Z, h, O) y
+              }     
+   7 Y" x, L/ J9 q9 t' H
+    //Modify control mode to ensure that the program does not occupy the serial port) ^' v6 ]" p7 ?2 g2 L7 G* W! Q/ W
+    options.c_cflag |= CLOCAL;
+    //Modify the control mode, so that it can read data from the serial port7 a4 D( J! e3 A9 k% }1 ]
+    options.c_cflag |= CREAD;1 M0 S; `. R% I( C, R9 |: B
+  
+    //Set data flow control
+    switch(flow_ctrl)4 v% `( Q0 d$ i, m* P
+    {
+      
+       case 0 ://No flow control! J8 E/ R1 Y; k" Q# v5 _  M
+              options.c_cflag &= ~CRTSCTS;/ B& B9 l6 Q" l* Q
+              break;   " j. _  W7 J# C3 b/ N
+      ( _, z9 \9 m/ T# C# s
+       case 1 ://Hardware flow control6 C, X! D' p  M& W
+              options.c_cflag |= CRTSCTS;* ?" H8 q- Z8 k8 t9 i
+              break;8 q* k; F) a0 X" g4 `* j, l  h% C
+       case 2 ://Software flow control7 |) V8 v. U4 c. C$ j: H
+              options.c_cflag |= IXON | IXOFF | IXANY;( \( B* z+ ^4 W
+              break;+ f. q: [" n" O
+    }
+    //set data bit, j  L: |% |& ]& q! V
+    //Mask other flags6 J+ X: I8 H0 Y0 u5 i. t' r
+    options.c_cflag &= ~CSIZE;
+    switch (databits)
+    {  6 C3 C3 B4 X, `6 r9 c$ l
+       case 5    :/ x2 w" f; A- s( K  C# H
+                     options.c_cflag |= CS5;
+                     break;
+       case 6    :- E% M$ g' C3 u* i  E, c: f
+                     options.c_cflag |= CS6;
+                     break;
+       case 7    :    % t7 y, `2 A+ {$ x3 M% ?
+                 options.c_cflag |= CS7;/ U# q7 i& P4 j9 ?1 u8 ?2 s! w6 Y
+                 break;
+       case 8:    ! K0 {* E2 Q5 s& T9 I0 v
+                 options.c_cflag |= CS8;1 G! ?4 R" B/ F" e% h5 V
+                 break;  
+       default:   & J- E( A( q! F. _9 D7 I, [
+                 fprintf(stderr,"Unsupported data size\n");* V) i" w  d( m9 `- s
+                 return (FALSE); & L5 \  {; e8 J. L/ L& k, U
+    }3 E1 S, K2 M2 @0 _& G
+    //Set check bit4 l  f( E1 y% B8 y
+    switch (parity)
+    {  # y0 n& a" K- B
+       case 'n':$ `1 r3 x+ l2 y  ?7 [% r0 Y2 T- w
+       case 'N': //No parity bit。3 h, p) w# ~: C. |) R; _
+                 options.c_cflag &= ~PARENB; 4 v& z& a3 n, N) E
+                 options.c_iflag &= ~INPCK;    
+                 break; , m/ p% Y  _: U3 K. ?* w- t& Y
+       case 'o':  * P, j% K! u) e2 i8 ]
+       case 'O'://Set to odd check  
+                 options.c_cflag |= (PARODD | PARENB); 
+                 options.c_iflag |= INPCK;             
+                 break; ) l( x& l) q- u! Z; H8 p0 l
+       case 'e': 
+       case 'E'://Set to parity check  
+                 options.c_cflag |= PARENB;       
+                 options.c_cflag &= ~PARODD;       ; b; ~( [1 o( Y+ \2 d$ N) P  a
+                 options.c_iflag |= INPCK;      # [' o$ {4 t' b/ {- M
+                 break;
+       case 's':
+       case 'S': //Set to spaces
+                 options.c_cflag &= ~PARENB;( u3 Y& p, e" h3 }
+                 options.c_cflag &= ~CSTOPB;
+                 break; 
+        default:  0 o. @( F2 k8 }- m0 h& T5 c
+                 fprintf(stderr,"Unsupported parity\n");    
+                 return (FALSE); * l0 w) O. I3 ?, f
+    } 
+    // Set stop bit
+    switch (stopbits)  H- [/ m! W( N8 O
+    {  
+       case 1:   
+                 options.c_cflag &= ~CSTOPB; break; 
+       case 2:   
+                 options.c_cflag |= CSTOPB; break;7 \( v, j9 `5 S$ T- Q3 }% h! e
+       default:   
+                       fprintf(stderr,"Unsupported stop bits\n"); 
+                       return (FALSE);% I% ~% {) B9 U7 e7 G
+    }
+   : ]9 _3 c, M' z  U. ~
+  //修改输出模式，原始数据输出
+  options.c_oflag &= ~OPOST;
+  & \" Y  P1 }+ D/ z
+  options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);//我加的/ n1 Q/ u8 U( \# G7 ?* p( y3 F- q
+//options.c_lflag &= ~(ISIG | ICANON);
+        {// 0x11 send
+                options.c_lflag &= ~(ICANON );
+                options.c_lflag &= ~(ICANON |ISIG);8 P6 P3 Q* ~- t9 [
+                options.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);" ]  b0 s) r+ W
+        }
+    //设置等待时间和最小接收字符
+    options.c_cc[VTIME] = 0; /* 读取一个字符等待1*(1/10)s */  
+    options.c_cc[VMIN] = 1; /* 读取字符的最少个数为1 */
+   
+    //如果发生数据溢出，接收数据，但是不再读取 刷新收到的数据但是不读4 q. o4 Q5 s1 S3 Z0 y- \+ T* D5 W/ ]
+    tcflush(fd,TCIFLUSH);
+   
+    //激活配置 (将修改后的termios数据设置到串口中）
+    if (tcsetattr(fd,TCSANOW,&options) != 0)  
+           {
+               perror("com set error!\n");  
+              return (FALSE); ' I/ B* p% o9 u
+           }
+    return (TRUE); 
+}7 Z9 V5 \% p/ W8 C
+/*******************************************************************3 P  }5 p  J7 @5 t5 ~9 U- e2 J8 |
+* 名称：                UART0_Init()
+* 功能：                串口初始化- l, R9 L0 ~6 t, p9 g% y7 b
+* 入口参数：        fd       :  文件描述符   ' `+ q0 D$ [+ O3 w
+*               speed  :  串口速度
+*                              flow_ctrl  数据流控制
+*               databits   数据位   取值为 7 或者87 b- k' n6 m- Q% ^" ~6 L3 l6 v! V
+*                           stopbits   停止位   取值为 1 或者2. f: q  w: e% `, V7 S
+*                           parity     效验类型 取值为N,E,O,,S
+*                      * R0 y" N" F8 z; e3 Z4 u7 o7 ]' }
+* 出口参数：        正确返回为1，错误返回为05 V3 v; T! x4 z: K/ d
+*******************************************************************/
+int UART0_Init(int fd, int speed,int flow_ctrl,int databits,int stopbits,int parity)
+{6 w' c' p# ^% g8 }5 y; k" |
+    int err;
+    //设置串口数据帧格式
+    if (UART0_Set(fd,UART_BAND_RATE,0,8,1,'N') == FALSE)" k8 s% i, y3 i
+       {                                                         + J+ i8 P7 d& U: ^5 g
+        return FALSE;5 l0 d" H% x2 P5 A' c6 r9 j$ `4 I0 S
+       }
+    else
+       {1 _3 X, ^4 B) ^2 o7 w
+               return  TRUE;
+        }
+}
++ x7 \8 u/ [! t3 s) i. Q, i
+unsigned int time_count = 0;
+* a: w( W( h3 T& a
+/*******************************************************************3 u" G: Z: _% f6 Z0 n/ M/ J
+* 名称：                  UART0_Recv
+* 功能：                接收串口数据
+* 入口参数：        fd                  :文件描述符    
+*                              rcv_buf     :接收串口中数据存入rcv_buf缓冲区中+ c: j- S: s8 H/ e
+*                              data_len    :一帧数据的长度
+* 出口参数：        正确返回为1，错误返回为0
+*******************************************************************/
+int UART0_Recv(int fd, char *rcv_buf,int data_len)3 G3 ~& a& b! [0 ~6 [9 `. F8 }1 }
+{
+    int len,fs_sel;
+    fd_set fs_read;9 h/ t* r% g& p- t7 J
+   ( I( h* h  Q0 Q7 p; n
+    struct timeval time;/ V9 w# z' x. P" Z! W
+   # O) ^) r) j/ J0 X
+    FD_ZERO(&fs_read);
+    FD_SET(fd,&fs_read);
+   8 Q0 o. a! b/ _4 Z8 ^
+  //  time.tv_sec = 1;5 J! E9 J4 j7 P2 a
+   // time.tv_usec = 0;
+
+//        time_count += time.tv_sec;
+   9 K1 l! F6 K5 \* O; J  |
+    //使用select实现串口的多路通信1 d( V' H/ ?8 G5 X  R/ ~
+    fs_sel = select(fd+1,&fs_read,NULL,NULL, NULL);//&time);
+    if(fs_sel)
+   {' p# Z3 q2 l6 h2 l7 g$ r
+          len = read(fd,rcv_buf,data_len);: ~. a* L! h0 Z1 C+ k
+    //  printf("I am right!(version1.2) len = %d fs_sel = %d\n",len,fs_sel);
+          return len;; ^  [! r* z8 Z. w, o* X
+   }
+    else
+   {) f$ q* v9 p! T/ r! r; {! ]7 h
+     // printf("Sorry,I am wrong!");
+          return FALSE;
+   }     7 i& K, x# \7 l+ A
+}
+/********************************************************************
+* 名称：                  UART0_Send& s  b4 E+ A5 J8 @1 J
+* 功能：                发送数据* h4 ~9 K/ Z+ F6 j; N
+* 入口参数：        fd                  :文件描述符    
+*                              send_buf    :存放串口发送数据
+*                              data_len    :一帧数据的个数% K$ @" j( y) ?( p1 k
+* 出口参数：        正确返回为1，错误返回为0
+*******************************************************************/
+int UART0_Send(int fd, char *send_buf,int data_len)6 j6 t2 g7 |3 i4 \0 }$ ?" v
+{+ p, ]0 }. D  j4 a; |4 Y6 o: H
+    int len = 0;: a0 C( U% }/ z- n7 |; H: p
+   
+    len = write(fd,send_buf,data_len);
+    if (len == data_len )3 P7 ]; b4 Y9 {2 u  l
+              {
+                     return len;$ @/ ?9 b6 B5 V# z! E5 ~- O
+              }     
+    else   
+        {
+               
+                tcflush(fd,TCOFLUSH);
+                return FALSE;
+        }
+   
+}) D6 v9 L+ V" I# l6 y
+static void print_usage(const char *prog)
+{
+        printf("Usage: %s [-DsbdlHOLC3]\n", prog);
+        puts("  -D --device   device to use (default /dev/spidev1.1)\n"3 B# {0 G4 |) e$ D! z
+             "  -s --speed    max speed (Hz)\n"
+             "  -d --delay    delay (usec)\n"
+             "  -b --bpw      bits per word \n"7 x) p* q. Y7 Z0 t/ o5 ?3 H- R& y
+             "  -l --loop     loopback\n"
+             "  -H --cpha     clock phase\n"2 A/ E' ~$ x5 n' F! E+ o, z- Q+ ^
+             "  -O --cpol     clock polarity\n"; ~# {% }. |3 n2 E& ~/ k
+             "  -L --lsb      least significant bit first\n"9 c, x1 R' g: _. q% l+ w2 n
+             "  -C --cs-high  chip select active high\n"
+             "  -3 --3wire    SI/SO signals shared\n");
+        exit(1);
+}
+
+static void parse_opts(int argc, char *argv[])# x. V. b3 W: L- ?0 ]' r
+{9 c! h, d7 _( V
+        while (1) {; n3 X4 T# ~/ f
+                static const struct option lopts[] = {
+                        { "device",  1, 0, 'D' },/ S8 j, n  O9 S) G, D
+                        { "speed",   1, 0, 's' },
+                        { "delay",   1, 0, 'd' },
+                        { "bpw",     1, 0, 'b' },. W/ T- `( {# N" U3 ], a1 l' H# R
+                        { "loop",    0, 0, 'l' },
+                        { "cpha",    0, 0, 'H' },% [& g" B2 c, G7 p
+                        { "cpol",    0, 0, 'O' },  j$ T  J& v: }- V
+                        { "lsb",     0, 0, 'L' },6 l3 w& w9 }& J
+                        { "cs-high", 0, 0, 'C' },8 O, t1 ^" s3 r$ h; I/ p! D
+                        { "3wire",   0, 0, '3' },0 }+ C) P# m. Q9 {! W
+                        { "no-cs",   0, 0, 'N' },' Z- ^' r% C: q9 F+ g& k* ?  X  [7 u
+                        { "ready",   0, 0, 'R' },% ^, ?( o: x+ m+ C4 B
+                        { NULL, 0, 0, 0 },
+                };
+                int c;
+5 Z6 A1 W' U# E7 I4 t# a& N% Z2 ^
+                c = getopt_long(argc, argv, "D:s:d:b:lHOLC3NR", lopts, NULL);
+
+                if (c == -1)
+                        break;
+( c  P3 I- p4 z9 i, H  n7 H  A
+                switch (c) {
+                case 'D':
+                        device = optarg;$ y9 W; d" ^" S1 y5 a
+                        break;$ S" A8 ~; Z' O+ W
+                case 's':
+                        speed = atoi(optarg);6 b' ^3 ~7 T$ C* s
+                        break;
+                case 'd':. y) m# |9 [7 O/ N/ t
+                        delay = atoi(optarg);
+                        break;
+                case 'b':$ K! M+ P2 s5 f: T2 n4 z
+                        bits = atoi(optarg);! d- g! Y7 t+ H$ ]3 \" d( w7 o
+                        break;
+                case 'l':( C" }* E/ g  V, t' e  z! Z
+                        mode |= SPI_LOOP;+ d- K( j+ b) h& o' {
+                        break;
+                case 'H':2 f0 j( {7 P0 |# [
+                        mode |= SPI_CPHA;5 ^, Q; ?! s/ G5 k" V
+                        break;
+                case 'O':
+                        mode |= SPI_CPOL;7 R: y8 [4 M# o2 @+ ~. S3 Y6 W
+                        break;
+                case 'L':
+                        mode |= SPI_LSB_FIRST;) S6 e6 |7 t( l% r% m: @6 o
+                        break;
+                case 'C':
+                        mode |= SPI_CS_HIGH;# @9 r, _: O! B* E% d* k
+                        break;3 r3 G3 p6 Y8 K' X/ _
+                case '3':. a. C; D1 q# O3 a5 j& V
+                        mode |= SPI_3WIRE;
+                        break;) n8 \. D% A7 a* {4 _* @
+                case 'N':) D$ ~, m5 ^- T2 z" d
+                        mode |= SPI_NO_CS;
+                        break;
+                case 'R':
+                        mode |= SPI_READY;+ V; ^5 i7 }1 }4 E# f. p
+                        break;
+                default:5 l! n; w7 f0 ?
+                        print_usage(argv[0]);  G+ R, m  K$ r- _( u* P. w
+                        break;
+                }& t0 ^) O- v" o8 j& \
+        }
+}. R" _, C2 z# g8 Z4 o8 D( t- C5 U
+#define UART_ONCE_RXBUF_SIZE 1024( b  {- X8 e: ?/ C! E4 B
+#define UART_MAX_RXBUF_SIZE 4096
+#define GPS_DATA_MAX_LEN 14009 j( Z4 q/ }1 H8 V# s7 b
+8 s6 e; Z: F5 e9 b5 j" C
+char uart_once_buf[UART_ONCE_RXBUF_SIZE];8 V+ ?) i( A6 R
+char uart_rcv_buf[UART_MAX_RXBUF_SIZE];5 _+ l! f; W: S5 g% E
+) B* f+ @2 \- j1 k4 [2 P% Y
+int main(int argc, char *argv[])
+{& ~& H  U! l4 a$ O" a
+        int ret = 0;
+        int fd;
+        int fdusb0;
+                int uart_wr_ptr = 0;
+    int len,fs_sel;
+    fd_set fs_read;  G. |2 Y' ^5 F2 [
+     struct timeval time;
+    int first_start = 1;4 W% b5 q# O. ^5 C: |2 x$ G$ \
+int i = 0;: Z# E# B& `: R) z! e" g
+        
+        
+        parse_opts(argc, argv);# V7 r/ k% R+ K9 {5 |
++ t9 _$ h& S  Z* E
+        fd = open(device, O_RDWR);
+        if (fd < 0)- T  f7 N1 a3 o0 {7 i: x- v) i+ R
+                pabort("can't open device");  o( |6 ~5 t7 N7 b% y* R( S9 h6 [9 ~
+1 G$ x: L8 N; G% Y6 ~
+        /*
+         * spi mode
+         */
+        ret = ioctl(fd, SPI_IOC_WR_MODE, &mode);  s% k, ^. @7 n- m2 D5 {) F' o6 H. M# Y
+        if (ret == -1); ]; G0 M' x' v3 }. j
+                pabort("can't set spi mode");
+
+        ret = ioctl(fd, SPI_IOC_RD_MODE, &mode);
+        if (ret == -1)
+                pabort("can't get spi mode");
+
+        /*
+         * bits per word
+         */
+        ret = ioctl(fd, SPI_IOC_WR_BITS_PER_WORD, &bits);, A" p% D$ a1 v; ^, M2 l: Q
+        if (ret == -1)' \) C% C. X& a( \# A2 W" J. D
+                pabort("can't set bits per word");8 d. e+ m! @1 Q0 ?$ J  @
+- p, Y, @( h$ P, Q% {& |5 b
+        ret = ioctl(fd, SPI_IOC_RD_BITS_PER_WORD, &bits);
+        if (ret == -1)
+                pabort("can't get bits per word");
+* x" u' l; H* ^8 s
+        /*
+         * max speed hz4 q0 L: C3 F  }2 E: F8 q3 m
+         */
+        ret = ioctl(fd, SPI_IOC_WR_MAX_SPEED_HZ, &speed);
+        if (ret == -1)
+                pabort("can't set max speed hz");
+
+        ret = ioctl(fd, SPI_IOC_RD_MAX_SPEED_HZ, &speed);- L: v5 p& @- K4 U, |4 h8 X  t8 l
+        if (ret == -1), Z+ k. @7 |" L4 [: r0 ?
+                pabort("can't get max speed hz");- O& U4 |$ N7 s1 V; l* V$ E1 |
+1 O# k6 W/ Y% [# f4 e2 V
+        printf("spi mode: %d\n", mode);
+        printf("bits per word: %d\n", bits);- D+ [7 }7 f8 H  b
+        printf("max speed: %d Hz (%d KHz)\n", speed, speed/1000);" _) D: o/ d) O, D  E7 v4 g
+
+    fdusb0 = UART0_Open(fd,"/dev/ttyUSB0"); //打开串口，返回文件描述符3 K4 @: J. {& M$ R* \- L1 I- h
+
+    do {
+        ret = UART0_Init(fdusb0,UART_BAND_RATE,0,8,1,'N');
+        printf("Set Port Exactly!\n");
+    }while (FALSE == ret || FALSE == fdusb0);
+, Q+ g& Y) b( `1 Z) m, f9 j: r
+    uart_wr_ptr = 0;
+    ! s0 t* g! G4 u* q9 d9 e6 S
+    while (1) //循环读取数据7 N3 }! n1 A, ?) [4 H, q4 R
+    {  
+  //      len = UART0_Recv(fd, uart_once_buf, 1024);     
+        FD_ZERO(&fs_read);5 Q, D: g$ J' b8 M3 K( j" w
+        FD_SET(fdusb0,&fs_read);4 L3 t. T1 x% X" M
+; p( g0 s; M5 q' l5 L2 }
+        time.tv_sec = 0;
+        time.tv_usec = 1000;
+0 }: T5 Q' o9 }9 h  S8 m
+        //使用select实现串口的多路通信' T! L# G) [- L; l
+        fs_sel = select(fdusb0+1,&fs_read,NULL,NULL,&time);
+        if (fs_sel); t8 J- z, C6 @( {! G$ r( r
+        {
+            len = read(fdusb0,uart_once_buf,1024);4 f, @& s! I' N' E- ]/ O
+           // printf("once read =%d uart_once_buf=%s\n", len, uart_once_buf);* M, c. l6 {* ?5 f/ t4 B+ ?
+            if (len > 0)4 B3 B) e% d" \6 a6 \
+            {+ T4 {/ z& r$ j8 I4 J
+                if (first_start)
+                {
+                    first_start = 0;3 L. P6 o; f+ o1 y' X  i
+                }6 i0 Q/ Q$ |2 }3 i% P. f
+                memcpy(&uart_rcv_buf[uart_wr_ptr], uart_once_buf, len);$ y( m$ Q. l5 L  L
+                uart_wr_ptr += len;                
+            }
+        }
+        else% p! Z& o* E$ X( z% m, M+ h
+        {
+//            printf("time out!\n");
+            if (first_start == 0)6 E# l  H) i/ E5 \( H7 J; T
+            {
+                if (len > 0)2 W  O6 t5 ?( ~1 t
+                {+ L6 ]! e5 F; N* z; v6 Y/ c
+                    if (uart_wr_ptr > 0)) o. f9 R1 k3 g% J' ]8 t/ R
+                    {                        
+                        printf("uart_rcv_buf=%s uart_wr_ptr=%d\n", uart_rcv_buf, uart_wr_ptr);       
+                                if (uart_wr_ptr < 1514)
+                                {                                  , Z2 T  y5 P9 k, H* x" W  ^
+! w) ?3 F6 D2 ?2 X4 ?$ t. i' d% t
+                    //        printf("tv_usec = %x\n", tv.tv_usec);                        ! _* O- m4 n4 w  a0 I8 O, w* T
+                           // memcpy(gps_pkt_p->gps_data, uart_rcv_buf, uart_wr_ptr);  + K) S* _. L4 a& u; F, p
+                        char str1[16] = {0};8 I4 `2 {( }  J% s. w5 m
+                        char str2[16] = {0};
+                        char str3[64] = {0};3 P7 \" L% @- G8 r) [% ^+ b
+                        if(uart_wr_ptr > 16)
+                        {
+                                memcpy(str1, uart_rcv_buf, 16);
+                                if(uart_wr_ptr > 16 + 16)
+                                        memcpy(str2, uart_rcv_buf+16, 16);2 t- H+ }. Q- A1 d$ a) Y; A
+                                if(uart_wr_ptr > 16 * 2)" J  }6 O- s  k
+                                {- _4 G* P- N- ~2 q# C4 Y
+                                        int n3 = 0;6 p2 v. d* L* v
+                                        if(uart_wr_ptr >= 16 * 3)" e) _! u- u& z* O. W- Q
+                                        {* X# {+ x. k2 W* Q
+                                                n3 = 16;
+                                        }0 ?" l/ \3 ]' J$ p
+                                        else% Q; V# Z3 O- J" O  @/ U
+                                        {$ D- R4 p$ A' m7 I  x
+                                                n3 = uart_wr_ptr - 32;8 r" H3 T. ^6 M+ |: i
+                                        }1 B" h# s# u  c% Q. ^* N
+                                   for(i = 0; i < n3; i++)
+                                        {
+                                                //printf("uart_wr_ptr[%d]=0x%x\n", i+32, uart_rcv_buf[i+32]);    
+                                                if(uart_rcv_buf[i+32] == 0xa)   
+                                                        uart_rcv_buf[i+32] = '\0';7 `+ S# s; j5 C
+                                        }: ?' }# C; N7 e  P1 }7 _
+                                           memcpy(str3, uart_rcv_buf+32, n3);
+                                             }
+                                transfer1(fd, 0, 0, str1, 16, 
+                                0, 16, str2, 16, ( @# Z) |0 i) G/ b: p& F
+                                0, 32, str3, 16);
+                        }( G. N* w7 ]4 G
+                                // Send ethernet frame to socket.
+   / {2 j; p! P/ t5 M/ k' K
+                    }
+                        uart_wr_ptr = 0;
+                    }
+                    len = 0;
+                }                3 Y- Y8 }4 F! J0 Q( _
+            }
+        }     
+4 h$ o5 Z8 C# i  H4 |* I1 Y% X0 r
+  6 Q4 W3 ^$ @& W% c$ v
+
+0 S6 N9 z$ b% U( [; w
+        
+      ( J# Y( P6 G+ K2 o
+    } ( E7 s) ]3 k! M7 _6 [) M
+        close(fdusb0);
+        close(fd);- E5 J- k. W; y  b8 p
+
+        return ret;9 B$ P3 g% f; Y; [( h' u/ e  }2 J
+}+ c: @/ J; _9 D
