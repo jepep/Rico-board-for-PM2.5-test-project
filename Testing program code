@@ -1,65 +1,65 @@
-#include <stdio.h>; [9 r# b) o& W) f3 e8 v
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>                                                 
 #include <sys/stat.h>                                                      
-#include <termios.h>+ P+ t7 R2 E& A. d  J
-#include <unistd.h>! N+ V: X; v- @
-#include <time.h>( X1 @0 c, b. ~( `/ C: Z* q+ P) D
-#include <errno.h>- a( y( i3 ~& H/ d+ \4 ]2 m' j
+#include <termios.h>
+#include <unistd.h>
+#include <time.h>
+#include <errno.h>
 #include <string.h>
-#define NUM 256* Z* [# e  e! l' |$ z
-main()+ n. n* F" O: [8 @
-{' W" P- q1 N" S$ a5 {3 S2 ?, m6 m
-   int fd,i;6 g4 w- N/ k) h3 A  x6 P
+#define NUM 256
+main()
+{
+   int fd,i;
    char buf[NUM];
-   struct termios tio;8 l8 \; \- J8 j( I# I
+   struct termios tio
    int nreadlen = NUM;
-  // if((fd=open("/dev/ttyUSB0",O_RDWR|O_NDELAY|O_NOCTTY))<0)  H4 ?% M& J& J0 Q( Z1 W! S, q
-   if((fd=open("/dev/ttyUSB0",O_RDWR))<0). [: N& ]7 Y4 `3 j" ?0 w
-   {; L: a/ l" U; }. n
-      printf("could not open\n");9 D2 U) ~) b3 J7 n# A! h7 Q. i* G
+  // if((fd=open("/dev/ttyUSB0",O_RDWR|O_NDELAY|O_NOCTTY))<0)  
+   if((fd=open("/dev/ttyUSB0",O_RDWR))<0)
+   {
+      printf("could not open\n");
       exit(1);
    }
    else
     {
       printf("comm open success\n");
-    }* X( O9 A8 i, i9 k- \. L7 G- o
+    }
 tio.c_cflag=B115200|CS8|CREAD|CLOCAL;
         tio.c_cflag &= ~CRTSCTS;
-  //Amend the output model, original data output' h+ }- E; ]' Y, h) |' r
-  tio.c_oflag &= ~OPOST;; N# S" ^+ M! o- J1 }
-  ; Y% V8 h0 v9 L" b! {
-  tio.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);//This is what I added 0 X* y0 h' \7 s  l3 v  f- O4 H
+  //Amend the output model, original data output' }
+  tio.c_oflag &= ~OPOST;}
+
+  tio.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);//This is what I added 
 //options.c_lflag &= ~(ISIG | ICANON);
         {// 0x11 send
                 tio.c_lflag &= ~(ICANON );
-                tio.c_lflag &= ~(ICANON |ISIG);5 y. V& y7 Z& c+ ?& `9 y! |0 d
-                tio.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);' f- v! p# v% E; E  H* ]! q
+                tio.c_lflag &= ~(ICANON |ISIG);
+                tio.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
         }
-    //Set wait time and minimum receive character/ V/ M6 ~# @7 L6 H
-//tio.c_cflag=B9600|CS8|CREAD|CLOCAL;( s3 Y6 n4 e( p. H4 N4 [  h
+    //Set wait time and minimum receive character
+//tio.c_cflag=B9600|CS8|CREAD|CLOCAL;
 // tio.c_cflag&=~HUPCL;
-  tio.c_lflag=0;( n% o7 H' f$ O9 q
-  tio.c_iflag=IGNPAR;2 U3 {  t+ ~, w5 U, y8 ~2 B$ N' I" }) `
+  tio.c_lflag=0;
+  tio.c_iflag=IGNPAR;
   tio.c_oflag=0;
   tio.c_cc[VTIME]=10;
   tio.c_cc[VMIN]=16;
   
-  tcflush(fd,TCIFLUSH);; |4 ]  p' Z% x0 D1 t
+  tcflush(fd,TCIFLUSH);
   tcsetattr(fd,TCSANOW,&tio);
   fcntl(fd,F_SETFL,FNDELAY);
   
-  while(1)1 z$ _8 a9 I# S$ \  z) s! \
+  while(1)
 {
         memset(buf, '\0', NUM);
-    i=read(fd,buf, nreadlen);3 b$ e- |0 u8 r  `. B+ Y7 D
+    i=read(fd,buf, nreadlen);
     if(i>0)
     {
-      // write(fd,buf,1);( N- m6 ]5 x/ l2 _9 H
-      printf("---read <%s> from serial port ttyUSB0\n", buf);$ Z" G2 w9 u  ^: F% ?% B) s3 k9 r% {
+      // write(fd,buf,1);
+      printf("---read <%s> from serial port ttyUSB0\n", buf)
     }
-}: G& V2 X  ]3 V7 S
+}
 close (fd);
 }
