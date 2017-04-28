@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/types.h>                                                  5 ]5 q$ e2 n" |: l4 u; P9 w" v5 ?
-#include <sys/stat.h>                                                      7 Y; f5 I( L3 v, L
+#include <sys/types.h>                                                 
+#include <sys/stat.h>                                                      
 #include <termios.h>+ P+ t7 R2 E& A. d  J
 #include <unistd.h>! N+ V: X; v- @
 #include <time.h>( X1 @0 c, b. ~( `/ C: Z* q+ P) D
